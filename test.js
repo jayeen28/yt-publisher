@@ -106,7 +106,7 @@
         'Public': 2,
     };
     // ----------------------------------
-    // SCHEDULE DATE TIME IF WANT TO SCHEDULE THE PUBLISH  OR JUST SET false TO THE VARIABLE
+    // SCHEDULE DATE TIME IF WANT TO SCHEDULE THE PUBLISH  OR JUST SET null TO THE VARIABLE
     // {
     //  'Date': new Date('yyyy-MM-dd'),
     //  'Time': 'HH:mm AM/PM',
@@ -171,6 +171,20 @@
             debugLog(`visibility set to ${VISIBILITY}`);
             await sleep(50);
         }
+        /**
+         * Asynchronously schedules an event on a given date.
+         * 
+         * @param {string} date - The date to be scheduled in the calendar.
+         * @throws Will throw an error if the calendar input or schedule input is not found.
+         * @returns {void}
+         * 
+         * This function performs the following steps:
+         * 1. Clicks to open the schedule.
+         * 2. Clicks to open the calendar.
+         * 3. Finds the calendar input using an XPath query and simulates typing the provided date.
+         * 4. Finds the schedule time input using an XPath query, sets focus, and simulates typing the time '2:30 AM'.
+         * 5. Clicks a badge element to trigger any necessary updates before and after typing the time.
+         */
         async schedule(date) {
             click(await waitForElement(SCHEDULE_OPENER, this.raw));
             click(await waitForElement(SCHEDULE_CALENDAR_OPENER, this.raw));
