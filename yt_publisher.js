@@ -196,11 +196,9 @@
             else throw new Error('Calendar input not found');
             const scheduleTimeInput = document.evaluate(SCHEDULE_TIME_INPUT, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null)?.singleNodeValue;
             if (scheduleTimeInput) {
-                document.getElementById('uploading-badge').click();
                 scheduleTimeInput.focus();
                 simulateTyping(scheduleTimeInput, '2:30 AM');
                 await new Promise((r) => setTimeout(r, 100));
-                document.getElementById('uploading-badge').click();
             }
             else throw new Error('Schedule input not found');
         }
