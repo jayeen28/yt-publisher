@@ -52,6 +52,11 @@
     }
     const sleep = (ms) => new Promise((resolve, _) => setTimeout(resolve, ms));
 
+    function formatDate(date) {
+        const options = { year: 'numeric', month: 'short', day: 'numeric' };
+        return date.toLocaleDateString('en-US', options);
+    }
+
     async function waitForElement(selector, baseEl, timeoutMs) {
         if (timeoutMs === undefined) {
             timeoutMs = DEFAULT_ELEMENT_TIMEOUT_MS;
@@ -80,6 +85,18 @@
         debugLog(element, 'clicked');
     }
 
+    function simulateTyping(element, text) {
+        element.value = ''; // Clear the existing value
+        for (let i = 0; i < text.length; i++) {
+            const char = text.charAt(i);
+            const keyEvent = new KeyboardEvent('keydown', { key: char });
+            element.dispatchEvent(keyEvent);
+            element.value += char;
+            const inputEvent = new Event('input', { bubbles: true, cancelable: true });
+            element.dispatchEvent(inputEvent);
+        }
+    }
+
     // ----------------------------------
     // PUBLISH STUFF
     // ----------------------------------
@@ -87,6 +104,17 @@
         'Private': 0,
         'Unlisted': 1,
         'Public': 2,
+    };
+    // ----------------------------------
+    // SCHEDULE DATE TIME IF WANT TO SCHEDULE THE PUBLISH  OR JUST SET null TO THE VARIABLE
+    // {
+    //  'Date': new Date('yyyy-MM-dd'),
+    //  'Time': 'HH:mm AM/PM',
+    // }
+    // ----------------------------------
+    const SCHEDULE_CONFIG = {
+        'Date': new Date('2024-07-25'),
+        'Time': '08:00 PM'
     };
 
     // SELECTORS
@@ -98,6 +126,10 @@
     const RADIO_BUTTON_SELECTOR = 'tp-yt-paper-radio-button';
     const VISIBILITY_STEPPER_SELECTOR = '#step-badge-3';
     const VISIBILITY_PAPER_BUTTONS_SELECTOR = 'tp-yt-paper-radio-group';
+    const SCHEDULE_OPENER = '#second-container-expand-button';
+    const SCHEDULE_CALENDAR_INPUT = '//tp-yt-paper-input[@aria-label="Enter date"]//input';
+    const SCHEDULE_CALENDAR_OPENER = '#datepicker-trigger';
+    const SCHEDULE_TIME_INPUT = '//ytcp-form-input-container[@id="time-of-day-container"]//input';
     const SAVE_BUTTON_SELECTOR = '#done-button';
     const SUCCESS_ELEMENT_SELECTOR = 'ytcp-video-thumbnail-with-info';
     const DIALOG_SELECTOR = 'ytcp-dialog.ytcp-video-share-dialog > tp-yt-paper-dialog:nth-child(1)';
@@ -139,7 +171,37 @@
             debugLog(`visibility set to ${VISIBILITY}`);
             await sleep(50);
         }
-
+        /**
+         * Asynchronously schedules an event on a given date.
+         * 
+         * @param {string} date - The date to be scheduled in the calendar.
+         * @throws Will throw an error if the calendar input or schedule input is not found.
+         * @returns {void}
+         * 
+         * This function performs the following steps:
+         * 1. Clicks to open the schedule.
+         * 2. Clicks to open the calendar.
+         * 3. Finds the calendar input using an XPath query and simulates typing the provided date.
+         * 4. Finds the schedule time input using an XPath query, sets focus, and simulates typing the time '2:30 AM'.
+         * 5. Clicks a badge element to trigger any necessary updates before and after typing the time.
+         */
+        async schedule(date) {
+            click(await waitForElement(SCHEDULE_OPENER, this.raw));
+            click(await waitForElement(SCHEDULE_CALENDAR_OPENER, this.raw));
+            const calendarInput = document.evaluate(SCHEDULE_CALENDAR_INPUT, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null)?.singleNodeValue;
+            if (calendarInput) {
+                await sleep(100);
+                simulateTyping(calendarInput, date);
+            }
+            else throw new Error('Calendar input not found');
+            const scheduleTimeInput = document.evaluate(SCHEDULE_TIME_INPUT, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null)?.singleNodeValue;
+            if (scheduleTimeInput) {
+                scheduleTimeInput.focus();
+                simulateTyping(scheduleTimeInput, '2:30 AM');
+                await new Promise((r) => setTimeout(r, 100));
+            }
+            else throw new Error('Schedule input not found');
+        }
         async saveButton() {
             return await waitForElement(SAVE_BUTTON_SELECTOR, this.raw);
         }
@@ -230,7 +292,8 @@
         debugLog(`found ${videos.length} videos`);
         debugLog('starting in 1000ms');
         await sleep(1000);
-        for (let video of videos) {
+        for (let i = 0; i < videos.length; i++) {
+            const video = videos[i];
             const draft = await video.openDraft();
             debugLog({
                 draft
@@ -238,6 +301,11 @@
             await draft.selectMadeForKids();
             const visibility = await draft.goToVisibility();
             await visibility.setVisibility();
+            if (SCHEDULE_CONFIG) {
+                let newDate = new Date(SCHEDULE_CONFIG.Date);
+                newDate.setDate(SCHEDULE_CONFIG.Date.getDate() + i);
+                await visibility.schedule(formatDate(newDate));
+            }
             const dialog = await visibility.save();
             await dialog.close();
             await sleep(100);
